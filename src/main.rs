@@ -87,38 +87,111 @@ fn main() {
 fn MySlider() -> Element {
     let mut current_value = use_signal(|| 0.5);
     let interest_rate = truncate_to_two_decimal_places(current_value());
-    let principal_amount = 10_000.0f64;
+    let mut principal_signal = use_signal(|| 1000.00 as f64);
+    let mut principal_input = use_signal(|| "1000.00".to_string());
+    let mut input_valid = use_signal(|| true);
+    // let principal_amount = 10_000.0f64;
+    let principal_amount = principal_signal();
     let fv = compute_fv(principal_amount, 0.05, 12.0, interest_rate);
     let fv_dollars = (fv as i64).to_formatted_string(&num_format::Locale::en);
     let fv_cents = (fv * 100.0) as i64 % 100;
     let fv = format!("{}.{:02}", fv_dollars, fv_cents);
-    // let fv = format!("{:0.2f}", fv);
-    // use_effect(|| {
-    //     let computed_fv = compute_fv(10000.0, 0.05, 12.0, current_value.get());
-    //     fv.set(computed_fv);
-    // });
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("/assets/slider.css") }
 
         // Display the current value
-        div { style: "margin-bottom: 15px; font-size: 16px; font-weight: bold;", "Interest rate: {interest_rate}%, FV: ${fv}" }
+        div {
+            id: "FutureValueCalculation",
+            style: "margin-bottom: 15px; font-size: 16px; font-weight: bold;",
+            "Interest rate: {interest_rate}%, FV: ${fv}"
+        }
 
-        Slider {
-            class: "slider",
-            label: "Interest Rate Slider",
-            horizontal: true,
-            min: 0.0,
-            max: 10.0,
-            step: 0.01,
-            default_value: SliderValue::Single(0.05),
-            on_value_change: move |value: SliderValue| {
-                let SliderValue::Single(v) = value;
-                current_value.set(v);
-            },
-            SliderTrack { class: "slider-track",
-                SliderRange { class: "slider-range" }
-                SliderThumb { class: "slider-thumb" }
+        div {
+            label {
+                style: "display: block; margin-bottom: 5px; font-weight: bold; color: #333;",
+                "Principal Amount ($):"
+            }
+            input {
+                placeholder: "Enter initial principal amount (e.g., 10000.00)",
+                value: "{principal_input}",
+                style: {
+                    let input_width = std::cmp::max(100, principal_input().len() * 9 + 20);
+                    if input_valid() {
+                        format!("border: 1px solid #ccc; padding: 6px 8px; margin-bottom: 10px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                    } else {
+                        format!("border: 2px solid #ff0000; padding: 6px 8px; margin-bottom: 10px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                    }
+                },
+                oninput: move |event| {
+                    let input_text = event.value();
+                    principal_input.set(input_text.clone());
+
+                    // Allow empty input temporarily
+                    if input_text.trim().is_empty() {
+                        input_valid.set(true);
+                        return;
+                    }
+
+                    // Remove commas and whitespace for parsing
+                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
+
+                    match cleaned_input.parse::<f64>() {
+                        Ok(value) if value > 0.0 && value.is_finite() => {
+                            input_valid.set(true);
+                            principal_signal.set(value);
+                        }
+                        Ok(value) if value <= 0.0 => {
+                            input_valid.set(false);
+                        }
+                        Ok(_) => {
+                            // Non-finite number (NaN, infinity)
+                            input_valid.set(false);
+                        }
+                        Err(_) => {
+                            input_valid.set(false);
+                        }
+                    }
+                }
+            }
+            if !input_valid() && !principal_input().trim().is_empty() {
+                div {
+                    style: "color: #ff0000; font-size: 12px; margin-bottom: 10px;",
+                    {
+                        let input_text = principal_input();
+                        let cleaned_input = input_text.replace(",", "").replace(" ", "");
+
+                        if let Ok(value) = cleaned_input.parse::<f64>() {
+                            if value <= 0.0 {
+                                "Amount must be greater than zero"
+                            } else {
+                                "Invalid number format"
+                            }
+                        } else {
+                            "Please enter a valid number (digits and decimal point only)"
+                        }
+                    }
+                }
+            }
+        }
+
+        div {
+            Slider {
+                class: "slider",
+                label: "Interest Rate Slider",
+                horizontal: true,
+                min: 0.0,
+                max: 50.0,
+                step: 0.01,
+                default_value: SliderValue::Single(0.05),
+                on_value_change: move |value: SliderValue| {
+                    let SliderValue::Single(v) = value;
+                    current_value.set(v);
+                },
+                SliderTrack { class: "slider-track",
+                    SliderRange { class: "slider-range" }
+                    SliderThumb { class: "slider-thumb" }
+                }
             }
         }
     }
