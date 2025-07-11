@@ -1,0 +1,31 @@
+[package]
+name = "dx_fintools_fs"
+version = "0.1.0"
+authors = ["aaelony <aaelony@gmail.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = { version = "0.7.0-alpha.2", features = ["router", "fullstack"] }
+dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1" }
+num = "0.4.3"
+num-format = "0.4.4"
+
+[features]
+default = ["desktop"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]
+
+
+## Until we publish a new version of dioxus-primitives sdk, you need to use this patch:
+[patch.crates-io]
+dioxus-geolocation = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus-notification = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus-sdk = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus_storage = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus-sync = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus-time = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus-util = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
+dioxus-window = { git = "https://github.com/ealmloff/dioxus-std", branch = "0.7" }
