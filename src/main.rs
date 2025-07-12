@@ -70,6 +70,8 @@ enum Route {
     #[layout(Navbar)]
     #[route("/")]
     Home {},
+    #[route("/fv-calculator")]
+    FutureValueUI  {},
     #[route("/blog/:id")]
     Blog { id: i32 },
 }
@@ -84,57 +86,66 @@ fn main() {
 }
 
 #[component]
-fn MySlider() -> Element {
-    let mut current_value = use_signal(|| 0.5);
-    let interest_rate = truncate_to_two_decimal_places(current_value());
+fn FutureValueUI() -> Element {
+    let mut current_value = use_signal(|| 0.03875);
+    let interest_rate = current_value();
+    let mut years_signal = use_signal(|| 1.0);
+    let periods_per_year_signal = use_signal(|| 1.0);
     let mut principal_signal = use_signal(|| 1000.00 as f64);
-    let mut principal_input = use_signal(|| "1000.00".to_string());
     let mut input_valid = use_signal(|| true);
+    let mut years_input = use_signal(|| "1.0".to_string());
+    let mut years_input_valid = use_signal(|| true);
     // let principal_amount = 10_000.0f64;
     let principal_amount = principal_signal();
-    let fv = compute_fv(principal_amount, 0.05, 12.0, interest_rate);
+    let years = years_signal();
+    let periods_per_year = periods_per_year_signal();
+
+    let fv = compute_fv(principal_amount, interest_rate, periods_per_year, years);
     let fv_dollars = (fv as i64).to_formatted_string(&num_format::Locale::en);
     let fv_cents = (fv * 100.0) as i64 % 100;
     let fv = format!("{}.{:02}", fv_dollars, fv_cents);
 
+    let periods_string = match periods_per_year {
+        1.0 => "Annual",
+        4.0 => "Quarterly",
+        12.0 => "Monthly",
+        52.0 => "Weekly",
+        365.0 => "Daily",
+        _ => "Custom",
+    };
+
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("/assets/slider.css") }
-
-        // Display the current value
+        hr {}
+        // Input Principal
         div {
-            id: "FutureValueCalculation",
-            style: "margin-bottom: 15px; font-size: 16px; font-weight: bold;",
-            "Interest rate: {interest_rate}%, FV: ${fv}"
-        }
-
-        div {
+            style: "display: flex; align-items: center; margin-bottom: 15px;",
             label {
-                style: "display: block; margin-bottom: 5px; font-weight: bold; color: #333;",
+                style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
                 "Principal Amount ($):"
             }
             input {
                 placeholder: "Enter initial principal amount (e.g., 10000.00)",
-                value: "{principal_input}",
+                value: "{principal_signal}",
                 style: {
-                    let input_width = std::cmp::max(100, principal_input().len() * 9 + 20);
+                    let input_width = std::cmp::max(100, format!("{}", principal_signal()).len() * 9 + 20);
                     if input_valid() {
-                        format!("border: 1px solid #ccc; padding: 6px 8px; margin-bottom: 10px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                        format!("border: 1px solid #ccc; padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
                     } else {
-                        format!("border: 2px solid #ff0000; padding: 6px 8px; margin-bottom: 10px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                        format!("border: 2px solid #ff0000; padding: 6px 8px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
                     }
                 },
                 oninput: move |event| {
                     let input_text = event.value();
-                    principal_input.set(input_text.clone());
+
+                    // Remove commas and whitespace for parsing
+                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
 
                     // Allow empty input temporarily
                     if input_text.trim().is_empty() {
                         input_valid.set(true);
                         return;
                     }
-
-                    // Remove commas and whitespace for parsing
-                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
 
                     match cleaned_input.parse::<f64>() {
                         Ok(value) if value > 0.0 && value.is_finite() => {
@@ -154,28 +165,87 @@ fn MySlider() -> Element {
                     }
                 }
             }
-            if !input_valid() && !principal_input().trim().is_empty() {
-                div {
-                    style: "color: #ff0000; font-size: 12px; margin-bottom: 10px;",
-                    {
-                        let input_text = principal_input();
-                        let cleaned_input = input_text.replace(",", "").replace(" ", "");
+        }
+        if !input_valid() {
+            div {
+                style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
+                "Please enter a valid positive number"
+            }
+        }
 
-                        if let Ok(value) = cleaned_input.parse::<f64>() {
-                            if value <= 0.0 {
-                                "Amount must be greater than zero"
-                            } else {
-                                "Invalid number format"
-                            }
-                        } else {
-                            "Please enter a valid number (digits and decimal point only)"
+        // Input Years
+        div {
+            style: "display: flex; align-items: center; margin-bottom: 15px;",
+            label {
+                style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
+                "Number of Years:"
+            }
+            input {
+                placeholder: "Enter number of years (e.g., 5.0)",
+                value: "{years_input}",
+                style: {
+                    let input_width = std::cmp::max(80, years_input().len() * 9 + 20);
+                    if years_input_valid() {
+                        format!("border: 1px solid #ccc; padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                    } else {
+                        format!("border: 2px solid #ff0000; padding: 6px 8px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                    }
+                },
+                oninput: move |event| {
+                    let input_text = event.value();
+                    years_input.set(input_text.clone());
+
+                    // Allow empty input temporarily
+                    if input_text.trim().is_empty() {
+                        years_input_valid.set(true);
+                        return;
+                    }
+
+                    // Remove commas and whitespace for parsing
+                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
+
+                    match cleaned_input.parse::<f64>() {
+                        Ok(value) if value > 0.0 && value.is_finite() => {
+                            years_input_valid.set(true);
+                            years_signal.set(value);
+                        }
+                        Ok(value) if value <= 0.0 => {
+                            years_input_valid.set(false);
+                        }
+                        Ok(_) => {
+                            // Non-finite number (NaN, infinity)
+                            years_input_valid.set(false);
+                        }
+                        Err(_) => {
+                            years_input_valid.set(false);
                         }
                     }
                 }
             }
         }
+        if !years_input_valid() && !years_input().trim().is_empty() {
+            div {
+                style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
+                {
+                    let input_text = years_input();
+                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
 
+                    if let Ok(value) = cleaned_input.parse::<f64>() {
+                        if value <= 0.0 {
+                            "Number of years must be greater than zero"
+                        } else {
+                            "Invalid number format"
+                        }
+                    } else {
+                        "Please enter a valid number (digits and decimal point only)"
+                    }
+                }
+            }
+        }
+
+        // Input slider for interest rate
         div {
+            "Interest Rate:",
             Slider {
                 class: "slider",
                 label: "Interest Rate Slider",
@@ -183,16 +253,21 @@ fn MySlider() -> Element {
                 min: 0.0,
                 max: 50.0,
                 step: 0.01,
-                default_value: SliderValue::Single(0.05),
+                default_value: SliderValue::Single(3.875),
                 on_value_change: move |value: SliderValue| {
                     let SliderValue::Single(v) = value;
-                    current_value.set(v);
+                    current_value.set(v / 100.0);
                 },
                 SliderTrack { class: "slider-track",
                     SliderRange { class: "slider-range" }
                     SliderThumb { class: "slider-thumb" }
                 }
             }
+        }
+        div {
+            id: "FutureValueCalculation",
+            style: "margin-bottom: 15px; font-size: 16px; font-weight: bold;",
+            "{periods_string} Future value of {principal_amount} at {interest_rate * 100.0:.3}% for {years} years: ${fv}"
         }
     }
 }
@@ -231,8 +306,11 @@ fn App() -> Element {
 fn Home() -> Element {
     rsx! {
         // Hero {}
+        hr {}
+        br {}
+        // FutureValueUI {}
         Echo {}
-        MySlider {}
+
     }
 }
 
@@ -262,6 +340,7 @@ fn Navbar() -> Element {
     rsx! {
         div { id: "navbar",
             Link { to: Route::Home {}, "Home" }
+            Link { to: Route::FutureValueUI {  }, "Future Value Calculator"}
             Link { to: Route::Blog { id: 1 }, "Blog" }
         }
 
