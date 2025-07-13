@@ -7,7 +7,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.7.0-alpha.2", features = ["router", "fullstack"] }
+## dioxus = { version = "0.7.0-alpha.2", features = ["router", "fullstack"] }
+dioxus = { version = "0.7.0-alpha.2", features = [
+	"router",
+] } ##  GitHub Pages cannot do fullstack.
 dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1" }
 num = "0.4.3"
 num-format = "0.4.4"

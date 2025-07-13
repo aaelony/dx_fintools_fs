@@ -48,3 +48,12 @@ To run for a different platform, use the `--platform platform` flag. E.g.
 dx serve --platform desktop
 ```
 
+
+### GitHub Pages
+
+```bash
+dx bundle --platform web --release
+```
+
+ - First copy the index.html file to 404.html
+ - Then copy the contents of the public directory (e.g. target/dx/dx_fintools_fs/release/web/public) to a new github repo matching the name of `base_path` in `Dioxus.toml`.

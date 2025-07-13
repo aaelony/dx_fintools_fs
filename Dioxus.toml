@@ -4,6 +4,7 @@
 
 # HTML title tag content
 title = "dx_fintools_fs"
+base_path = "dioxus_fv_app" ## important for github pages path
 
 # include `assets` in web platform
 [web.resource]
