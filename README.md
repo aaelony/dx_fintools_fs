@@ -57,3 +57,8 @@ dx bundle --platform web --release
 
  - First copy the index.html file to 404.html
  - Then copy the contents of the public directory (e.g. target/dx/dx_fintools_fs/release/web/public) to a new github repo matching the name of `base_path` in `Dioxus.toml`.
+
+
+### Ideas for future implementations
+
+ - Scrape https://www.fiscal.treasury.gov/prompt-payment/rates.html for current interest rate and make that the default setting?
