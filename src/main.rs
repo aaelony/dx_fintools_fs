@@ -5,103 +5,8 @@ use num_format::{Locale, ToFormattedString};
 use tracing::debug;
 use tracing_subscriber;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum Compounding {
-    Annual,
-    Semiannually,
-    Quarterly,
-    Monthly,
-    Weekly,
-    Daily,
-    Other(f64),
-}
-
-impl Compounding {
-    fn periods_per_year(&self) -> f64 {
-        match self {
-            Compounding::Annual => 1.0,
-            Compounding::Semiannually => 2.0,
-            Compounding::Quarterly => 4.0,
-            Compounding::Monthly => 12.0,
-            Compounding::Weekly => 52.0,
-            Compounding::Daily => 365.0,
-            Compounding::Other(periods) => *periods,
-        }
-    }
-
-    fn to_string(&self) -> &'static str {
-        match self {
-            Compounding::Annual => "Annual",
-            Compounding::Semiannually => "Semiannual",
-            Compounding::Quarterly => "Quarterly",
-            Compounding::Monthly => "Monthly",
-            Compounding::Weekly => "Weekly",
-            Compounding::Daily => "Daily",
-            Compounding::Other(_) => "Custom",
-        }
-    }
-}
-
-/// Truncates a floating-point number to two decimal places
-pub fn truncate_to_two_decimal_places<T: Float>(value: T) -> T {
-    (value * T::from(100.0).unwrap()).round() / T::from(100.0).unwrap()
-}
-
-// Computes the future value (FV) of an investment, including interest.
-///
-/// # Parameters:
-/// - `initial_value`: Initial principal amount (P)
-/// - `annual_interest_rate`: Annual interest rate (r), e.g., 0.04 for 4%
-/// - `n_per_year_compounded`: Number of compounding periods per year (n)
-/// - `n_years`: Time in years (t)
-///
-/// # Formula:
-/// FV = P * (1 + r/n)^nt
-///
-/// # Returns:
-/// The future value (FV) truncated to two decimal places.
-pub fn compute_fv<T>(
-    initial_value: T,
-    annual_interest_rate: T,
-    n_per_year_compounded: T,
-    n_years: T,
-) -> T
-where
-    T: Float,
-{
-    let nt = n_per_year_compounded * n_years;
-    let compound_rate = T::one() + annual_interest_rate / n_per_year_compounded;
-
-    truncate_to_two_decimal_places(initial_value * compound_rate.powf(nt))
-}
-
-// Computes the present value (PV) of an investment
-///
-/// # Parameters:
-/// - `future_value`: Future amount (FV)
-/// - `annual_interest_rate`: Annual interest rate (r), e.g., 0.04 for 4%
-/// - `n_per_year_compounded`: Number of compounding periods per year (n)
-/// - `n_years`: Time in years (t)
-///
-/// # Formula:
-/// PV = FV / (1 + r/n)^nt
-///
-/// # Returns:
-/// The present value (PV) truncated to two decimal places.
-pub fn compute_pv<T>(
-    future_value: T,
-    annual_interest_rate: T,
-    n_per_year_compounded: T,
-    n_years: T,
-) -> T
-where
-    T: Float,
-{
-    let nt = n_per_year_compounded * n_years;
-    let compound_rate = T::one() + annual_interest_rate / n_per_year_compounded;
-
-    truncate_to_two_decimal_places(future_value / compound_rate.powf(nt))
-}
+mod compounding;
+use compounding::{compute_fv, Compounding};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -131,11 +36,11 @@ fn main() {
 fn FutureValueUI() -> Element {
     let mut current_value = use_signal(|| 0.03875);
     let interest_rate = current_value();
-    let mut years_signal = use_signal(|| 1.0);
+    let mut years_signal = use_signal(|| 7.0);
     let mut periods_per_year_signal = use_signal(|| Compounding::Annual);
     let mut principal_signal = use_signal(|| 1000.00 as f64);
     let mut input_valid = use_signal(|| true);
-    let mut years_input = use_signal(|| "1.0".to_string());
+    let mut years_input = use_signal(|| "7.0".to_string());
     let mut years_input_valid = use_signal(|| true);
     // let principal_amount = 10_000.0f64;
     let principal_amount = principal_signal();
@@ -277,20 +182,33 @@ fn FutureValueUI() -> Element {
             input {
                 placeholder: "Enter number of years (e.g., 5.0)",
                 value: "{years_input}",
+                // class: if years_input_valid() { "input-valid" } else { "input-invalid" },
+                // style: {
+                //     let input_width = std::cmp::max(80, years_input().len() * 9 + 20);
+                //     let is_valid = years_input_valid();
+                //     if is_valid {
+                //         format!(
+                //             "border: 1px solid #ccc; padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;",
+                //             input_width,
+                //         )
+                //     } else {
+                //         format!(
+                //             "border: 2px solid #ff0000; padding: 6px 8px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;",
+                //             input_width,
+                //         )
+                //     }
+                // },
+                class: if years_input_valid() { "years-input-valid" } else { "years-input-invalid" },
                 style: {
                     let input_width = std::cmp::max(80, years_input().len() * 9 + 20);
-                    if years_input_valid() {
-                        format!(
-                            "border: 1px solid #ccc; padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;",
-                            input_width,
-                        )
-                    } else {
-                        format!(
-                            "border: 2px solid #ff0000; padding: 6px 8px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;",
-                            input_width,
-                        )
-                    }
+                    format!("padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
                 },
+
+
+                // style: {
+                // 	let input_width = std::cmp::max(80, years_input().len() *9 + 20);
+                //  	format!("padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                // },
                 oninput: move |event| {
                     let input_text = event.value();
                     years_input.set(input_text.clone());

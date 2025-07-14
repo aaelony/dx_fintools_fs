@@ -104,3 +104,22 @@ body {
 #echo > p {
 	margin: 20px 0px 0px auto;
 }
+
+/* Years input validation styles */
+.years-input-valid {
+	border: 1px solid #ccc !important;
+}
+
+.years-input-invalid {
+	border: 2px solid #ff0000 !important;
+	background-color: #ffe6e6 !important;
+	color: #333 !important;
+}
+
+/* Ensure the classes take precedence over inline styles */
+input.years-input-valid,
+input.years-input-invalid {
+	transition:
+		border-color 0.2s ease,
+		background-color 0.2s ease;
+}
