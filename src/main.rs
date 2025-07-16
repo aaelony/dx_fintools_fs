@@ -13,7 +13,7 @@ use future_value_component::FutureValueUI;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
-pub enum Route {
+pub enum Route { // components in the enum are called and MUST exist.
     #[layout(Navbar)]
     #[route("/")]
     Home {},
@@ -60,6 +60,17 @@ fn Home() -> Element {
 
         hr {}
         br {}
+
+        div {
+            p { "Hello! My name is Avram. " }
+        }
+        div { "The following site is designed to showcase use of the Dioxus Rust library." }
+        div {
+            br {}
+            p {
+                "Disclaimer: This is a new project, so please verify all calculations before relying on any features. Enjoy! "
+            }
+        }
     }
 }
 
