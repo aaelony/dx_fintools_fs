@@ -123,3 +123,21 @@ input.years-input-invalid {
 		border-color 0.2s ease,
 		background-color 0.2s ease;
 }
+/* Principal Amount input validation styles */
+.principal-input-valid {
+	border: 1px solid #ccc !important;
+}
+
+.principal-input-invalid {
+	border: 2px solid #ff0000 !important;
+	background-color: #ffe6e6 !important;
+	color: #333 !important;
+}
+
+/* Ensure the classes take precedence over inline styles */
+input.principal-input-valid,
+input.principal-input-invalid {
+	transition:
+		border-color 0.2s ease,
+		background-color 0.2s ease;
+}

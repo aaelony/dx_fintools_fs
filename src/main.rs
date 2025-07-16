@@ -8,6 +8,96 @@ use tracing_subscriber;
 mod compounding;
 use compounding::{compute_fv, Compounding};
 
+/// Validates numeric input and updates the corresponding signals
+/// Returns true if the input is valid, false otherwise
+fn validate_numeric_input(
+    cleaned_input: &str,
+    validity_signal: &mut Signal<bool>,
+    value_signal: &mut Signal<f64>,
+) -> bool {
+    match cleaned_input.parse::<f64>() {
+        Ok(value) if value > 0.0 && value.is_finite() => {
+            validity_signal.set(true);
+            value_signal.set(value);
+            true
+        }
+        Ok(_) | Err(_) => {
+            validity_signal.set(false);
+            false
+        }
+    }
+}
+
+/// Generates appropriate error message for invalid numeric input
+fn get_numeric_error_message(input_text: &str, field_name: &str) -> String {
+    let cleaned_input = input_text.replace(",", "").replace(" ", "");
+    if let Ok(value) = cleaned_input.parse::<f64>() {
+        if value <= 0.0 {
+            format!("{} must be greater than zero", field_name)
+        } else {
+            "Invalid number format".to_string()
+        }
+    } else {
+        "Please enter a valid number (digits and decimal point only)".to_string()
+    }
+}
+
+const COMPOUNDING_OPTIONS: &[(Compounding, &str, &str)] = &[
+    (Compounding::Annual, "annual", "Annual"),
+    (Compounding::Semiannually, "semiannual", "Semi-annually"),
+    (Compounding::Quarterly, "quarterly", "Quarterly"),
+    (Compounding::Monthly, "monthly", "Monthly"),
+    (Compounding::Weekly, "weekly", "Weekly"),
+    (Compounding::Daily, "daily", "Daily"),
+];
+
+#[component]
+fn NumericInput(
+    label: String,
+    placeholder: String,
+    input_signal: Signal<String>,
+    value_signal: Signal<f64>,
+    valid_signal: Signal<bool>,
+    field_name: String,
+    css_prefix: String,
+) -> Element {
+    rsx! {
+        div { style: "display: flex; align-items: center; margin-bottom: 15px;",
+            label { style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
+                {label}
+            }
+            input {
+                placeholder: placeholder,
+                value: "{input_signal}",
+                class: if valid_signal() {
+                    format!("{}-input-valid", css_prefix)
+                } else {
+                    format!("{}-input-invalid", css_prefix)
+                },
+                style: {
+                    let input_width = std::cmp::max(100, input_signal().len() * 9 + 20);
+                    format!("padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+                },
+                oninput: move |event| {
+                    let input_text = event.value();
+                    input_signal.set(input_text.clone());
+                    if input_text.trim().is_empty() {
+                        valid_signal.set(true);
+                        return;
+                    }
+                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
+                    validate_numeric_input(&cleaned_input, &mut valid_signal, &mut value_signal);
+                },
+            }
+        }
+        if !valid_signal() && !input_signal().trim().is_empty() {
+            div { style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
+                {get_numeric_error_message(&input_signal(), &field_name)}
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
@@ -31,7 +121,6 @@ fn main() {
         .init();
     dioxus::launch(App);
 }
-
 #[component]
 fn FutureValueUI() -> Element {
     let mut current_value = use_signal(|| 0.03875);
@@ -39,12 +128,13 @@ fn FutureValueUI() -> Element {
     let mut years_signal = use_signal(|| 7.0);
     let mut periods_per_year_signal = use_signal(|| Compounding::Annual);
     let mut principal_signal = use_signal(|| 1000.00 as f64);
-    let mut input_valid = use_signal(|| true);
+    let mut amount_input_valid = use_signal(|| true);
+    let mut principal_input = use_signal(|| "1000.00".to_string());
     let mut years_input = use_signal(|| "7.0".to_string());
     let mut years_input_valid = use_signal(|| true);
     // let principal_amount = 10_000.0f64;
     let principal_amount = principal_signal();
-    let years = years_signal();
+    let years: f64 = years_signal();
     let periods_per_year = periods_per_year_signal().periods_per_year();
 
     let fv = compute_fv(principal_amount, interest_rate, periods_per_year, years);
@@ -74,184 +164,119 @@ fn FutureValueUI() -> Element {
                 },
                 onchange: move |event| {
                     let value = event.value();
-                    match value.as_str() {
-                        "annual" => periods_per_year_signal.set(Compounding::Annual),
-                        "semiannual" => periods_per_year_signal.set(Compounding::Semiannually),
-                        "quarterly" => periods_per_year_signal.set(Compounding::Quarterly),
-                        "monthly" => periods_per_year_signal.set(Compounding::Monthly),
-                        "weekly" => periods_per_year_signal.set(Compounding::Weekly),
-                        "daily" => periods_per_year_signal.set(Compounding::Daily),
-                        _ => {}
+                    if let Some(&(compounding, _, _)) = COMPOUNDING_OPTIONS
+                        .iter()
+                        .find(|(_, value_str, _)| *value_str == value.as_str())
+                    {
+                        periods_per_year_signal.set(compounding);
                     }
                 },
-                option {
-                    value: "annual",
-                    selected: matches!(periods_per_year_signal(), Compounding::Annual),
-                    style: "background: gray; color: white;",
-                    "Annual"
-                }
-                option {
-                    value: "semiannual",
-                    selected: matches!(periods_per_year_signal(), Compounding::Semiannually),
-                    "Semi-annually"
-                }
-                option {
-                    value: "quarterly",
-                    selected: matches!(periods_per_year_signal(), Compounding::Quarterly),
-                    "Quarterly"
-                }
-                option {
-                    value: "monthly",
-                    selected: matches!(periods_per_year_signal(), Compounding::Monthly),
-                    "Monthly"
-                }
-                option {
-                    value: "weekly",
-                    selected: matches!(periods_per_year_signal(), Compounding::Weekly),
-                    "Weekly"
-                }
-                option {
-                    value: "daily",
-                    selected: matches!(periods_per_year_signal(), Compounding::Daily),
-                    "Daily"
-                }
-            }
-        }
-        //
-        // Input Principal
-        div { style: "display: flex; align-items: center; margin-bottom: 15px;",
-            label { style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
-                "Principal Amount ($):"
-            }
-            input {
-                placeholder: "Enter initial principal amount (e.g., 10000.00)",
-                value: "{principal_signal}",
-                style: {
-                    let input_width = std::cmp::max(
-                        100,
-                        format!("{}", principal_signal()).len() * 9 + 20,
-                    );
-                    if input_valid() {
-                        format!(
-                            "border: 1px solid #ccc; padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;",
-                            input_width,
-                        )
-                    } else {
-                        format!(
-                            "border: 2px solid #ff0000; padding: 6px 8px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;",
-                            input_width,
-                        )
-                    }
-                },
-                oninput: move |event| {
-                    let input_text = event.value();
-                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
-                    if input_text.trim().is_empty() {
-                        input_valid.set(true);
-                        return;
-                    }
-                    match cleaned_input.parse::<f64>() {
-                        Ok(value) if value > 0.0 && value.is_finite() => {
-                            input_valid.set(true);
-                            principal_signal.set(value);
-                        }
-                        Ok(value) if value <= 0.0 => {
-                            input_valid.set(false);
-                        }
-                        Ok(_) => {
-                            input_valid.set(false);
-                        }
-                        Err(_) => {
-                            input_valid.set(false);
-                        }
-                    }
-                },
-            }
-        }
-        if !input_valid() {
-            div { style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
-                "Please enter a valid positive number"
-            }
-        }
-
-        // Input Years
-        div { style: "display: flex; align-items: center; margin-bottom: 15px;",
-            label { style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
-                "Number of Years:"
-            }
-            input {
-                placeholder: "Enter number of years (e.g., 5.0)",
-                value: "{years_input}",
-                // class: if years_input_valid() { "input-valid" } else { "input-invalid" },
-                // style: {
-                //     let input_width = std::cmp::max(80, years_input().len() * 9 + 20);
-                //     let is_valid = years_input_valid();
-                //     if is_valid {
-                //         format!(
-                //             "border: 1px solid #ccc; padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;",
-                //             input_width,
-                //         )
-                //     } else {
-                //         format!(
-                //             "border: 2px solid #ff0000; padding: 6px 8px; background-color: #ffe6e6; width: {}px; border-radius: 4px; font-family: monospace;",
-                //             input_width,
-                //         )
-                //     }
-                // },
-                class: if years_input_valid() { "years-input-valid" } else { "years-input-invalid" },
-                style: {
-                    let input_width = std::cmp::max(80, years_input().len() * 9 + 20);
-                    format!("padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
-                },
-
-
-                // style: {
-                // 	let input_width = std::cmp::max(80, years_input().len() *9 + 20);
-                //  	format!("padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
-                // },
-                oninput: move |event| {
-                    let input_text = event.value();
-                    years_input.set(input_text.clone());
-                    if input_text.trim().is_empty() {
-                        years_input_valid.set(true);
-                        return;
-                    }
-                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
-                    match cleaned_input.parse::<f64>() {
-                        Ok(value) if value > 0.0 && value.is_finite() => {
-                            years_input_valid.set(true);
-                            years_signal.set(value);
-                        }
-                        Ok(value) if value <= 0.0 => {
-                            years_input_valid.set(false);
-                        }
-                        Ok(_) => {
-                            years_input_valid.set(false);
-                        }
-                        Err(_) => {
-                            years_input_valid.set(false);
-                        }
-                    }
-                },
-            }
-        }
-        if !years_input_valid() && !years_input().trim().is_empty() {
-            div { style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
                 {
-                    let input_text = years_input();
-                    let cleaned_input = input_text.replace(",", "").replace(" ", "");
-                    if let Ok(value) = cleaned_input.parse::<f64>() {
-                        if value <= 0.0 {
-                            "Number of years must be greater than zero"
-                        } else {
-                            "Invalid number format"
-                        }
-                    } else {
-                        "Please enter a valid number (digits and decimal point only)"
-                    }
+                    COMPOUNDING_OPTIONS
+                        .iter()
+                        .map(|(compounding, value, display)| {
+                            rsx! {
+                                option {
+                                    value: *value,
+                                    selected: matches!(periods_per_year_signal(), comp if comp == *compounding),
+                                    style: if *value == "annual" { "background: gray; color: white;" } else { "" },
+                                    {*display}
+                                }
+                            }
+                        })
                 }
             }
+
         }
+
+        // -------------------------------------------------------------------
+        // Input Principal
+        NumericInput {
+            label: "Principal Amount ($):".to_string(),
+            placeholder: "Enter initial principal amount (e.g., 10000.00)".to_string(),
+            input_signal: principal_input,
+            value_signal: principal_signal,
+            valid_signal: amount_input_valid,
+            field_name: "Principal amount".to_string(),
+            css_prefix: "principal".to_string(),
+        }
+
+
+
+        // div { style: "display: flex; align-items: center; margin-bottom: 15px;",
+        //     label { style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
+        //         "Principal Amount ($):"
+        //     }
+        //     input {
+        //         placeholder: "Enter initial principal amount (e.g., 10000.00)",
+        //         value: "{principal_input}",
+        //         class: if amount_input_valid() { "principal-input-valid" } else { "principal-input-invalid" },
+        //         style: {
+        //             let input_width = std::cmp::max(100, principal_input().len() * 9 + 20);
+        //             format!("padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;", input_width)
+        //         },
+        //         oninput: move |event| {
+        //             let input_text = event.value();
+        //             principal_input.set(input_text.clone());
+        //             if input_text.trim().is_empty() {
+        //                 amount_input_valid.set(true);
+        //                 return;
+        //             }
+        //             let cleaned_input = input_text.replace(",", "").replace(" ", "");
+        //             validate_numeric_input(&cleaned_input, &mut amount_input_valid, &mut principal_signal);
+        //         },
+        //     }
+        // }
+        // if !amount_input_valid() && !principal_input().trim().is_empty() {
+        //     div { style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
+        //     {get_numeric_error_message(&principal_input(), "Principal amount")}
+
+        //     }
+        // }
+
+        // -------------------------------------------------------------------
+        // Input Years
+        NumericInput {
+            label: "Number of Years:".to_string(),
+            placeholder: "Enter number of years (e.g. 5.0)".to_string(),
+            input_signal: years_input,
+            value_signal: years_signal,
+            valid_signal: years_input_valid,
+            field_name: "Number of years".to_string(),
+            css_prefix: "years".to_string(),
+        }
+        // div { style: "display: flex; align-items: center; margin-bottom: 15px;",
+        //     label { style: "margin-right: 10px; font-weight: bold; color: #333; min-width: 150px;",
+        //         "Number of Years:"
+        //     }
+        //     input {
+        //         placeholder: "Enter number of years (e.g. 5.0)",
+        //         value: "{years_input}",
+        //         class: if years_input_valid() { "years-input-valid" } else { "years-input-invalid" },
+        //         style: {
+        //             let input_width = std::cmp::max(80, years_input().len() * 9 + 20);
+        //             format!(
+        //                 "padding: 6px 8px; width: {}px; border-radius: 4px; font-family: monospace;",
+        //                 input_width,
+        //             )
+        //         },
+        //         oninput: move |event| {
+        //             let input_text = event.value();
+        //             years_input.set(input_text.clone());
+        //             if input_text.trim().is_empty() {
+        //                 years_input_valid.set(true);
+        //                 return;
+        //             }
+        //             let cleaned_input = input_text.replace(",", "").replace(" ", "");
+        //             validate_numeric_input(&cleaned_input, &mut years_input_valid, &mut years_signal);
+        //         },
+        //     }
+        // }
+        // if !years_input_valid() && !years_input().trim().is_empty() {
+        //     div { style: "color: #ff0000; font-size: 12px; margin-left: 160px; margin-bottom: 10px;",
+        //        {get_numeric_error_message(&years_input(), "Number of years")}
+        //     }
+        // }
 
         // Input slider for interest rate
         div { style: "color: #333; font-weight: bold;",
