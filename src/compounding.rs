@@ -27,8 +27,8 @@ impl Compounding {
 
     pub fn to_string(&self) -> &'static str {
         match self {
-            Compounding::Annual => "Annual",
-            Compounding::Semiannually => "Semiannual",
+            Compounding::Annual => "Annually",
+            Compounding::Semiannually => "Semi-annually",
             Compounding::Quarterly => "Quarterly",
             Compounding::Monthly => "Monthly",
             Compounding::Weekly => "Weekly",

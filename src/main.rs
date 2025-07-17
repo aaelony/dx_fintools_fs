@@ -16,8 +16,8 @@ use future_value_component::FutureValueUI;
 pub enum Route { // components in the enum are called and MUST exist.
     #[layout(Navbar)]
     #[route("/")]
-    Home {},
-    #[route("/fv-calculator")]
+    //Home {},
+    //#[route("/fv-calculator")]
     FutureValueUI  {},
     #[route("/blog/:id")]
     Blog { id: i32 },
@@ -67,9 +67,6 @@ fn Home() -> Element {
         div { "The following site is designed to showcase use of the Dioxus Rust library." }
         div {
             br {}
-            p {
-                "Disclaimer: This is a new project, so please verify all calculations before relying on any features. Enjoy! "
-            }
         }
     }
 }
@@ -79,7 +76,7 @@ fn Home() -> Element {
 fn Navbar() -> Element {
     rsx! {
         div { id: "navbar",
-            Link { to: Route::Home {}, "Home" }
+            // Link { to: Route::Home {}, "Home" }
             Link { to: Route::FutureValueUI {}, "Future Value Calculator" }
                 //Link { to: Route::Blog { id: 1 }, "Blog" }
         }

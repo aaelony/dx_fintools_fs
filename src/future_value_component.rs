@@ -36,11 +36,14 @@ pub fn FutureValueUI() -> Element {
     let fv_cents = (fv * 100.0) as i64 % 100;
     let fv = format!("{}.{:02}", fv_dollars, fv_cents);
 
-    let periods_string = periods_per_year_signal().to_string();
+    let periods_string = periods_per_year_signal().to_string().to_ascii_lowercase();
 
     rsx! {
         document::Link { rel: "stylesheet", href: asset!("/assets/slider.css") }
         hr {}
+        br {}
+
+
 
         // Compounding period dropdown
         div { style: "display: flex; align-items: center; margin-bottom: 15px;",
@@ -131,12 +134,18 @@ pub fn FutureValueUI() -> Element {
         div {
             id: "FutureValueCalculationConfig",
             style: "margin-bottom: 15px; font-size: 16px; font-weight: bold;",
-            "{periods_string} Future value of {principal_amount} at {interest_rate * 100.0:.3}% for {years} years: "
+            "The future value of {principal_amount} at {interest_rate * 100.0:.3}% for {years} years with compounding {periods_string}: "
         }
         div {
             id: "FutureValueCalculation",
             style: "margin-bottom: 15px; font-size: 16px; font-weight: bold;",
-            " ${fv}"
+            " ${fv}*"
+        }
+        div { style: "font-size: 10px",
+            p { "*please verify all calculations before relying on any features fordecision-making." }
+
+            br {}
+            br {}
         }
     }
 
